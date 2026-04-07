@@ -9,6 +9,7 @@ import (
 	"gitea.com/hz/linkcloud/model"
 	"gitea.com/hz/linkcloud/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
 func Login(c *gin.Context) {
@@ -107,26 +108,33 @@ func Register(c *gin.Context) {
 	codeKey := fmt.Sprintf("captcha:%s", req.Email)
 	storedCode, err := database.Redis.Get(database.Ctx, codeKey).Result()
 
+	// 键不存在的情况下，err == redis.Nil
+	// 键存在的情况下，err == nil
+
+	// fmt.Println(err == nil, err == redis.Nil, len(storedCode))
+
 	if err != nil {
-		c.JSON(200, gin.H{
-			"code":    -2,
-			"message": "系统繁忙，请稍后再试",
-		})
+		// 有错误，分两种情况
+		if err == redis.Nil {
+			// 键不存在 = 验证码已过期
+			c.JSON(200, gin.H{
+				"code":    -2,
+				"message": "验证码已过期, 请重新获取",
+			})
+		} else {
+			// 其他错误（Redis连接失败等）
+			c.JSON(200, gin.H{
+				"code":    -3,
+				"message": "系统繁忙, 请稍后再试",
+			})
+		}
 		return
 	}
 
-	if len(storedCode) == 0 {
+	if storedCode != req.Captcha {
 		c.JSON(200, gin.H{
-			"code":    -2,
-			"message": "验证码已过期",
-		})
-		return
-	}
-
-	if err != nil || storedCode != req.Captcha {
-		c.JSON(200, gin.H{
-			"code":    -2,
-			"message": "验证码错误或已过期",
+			"code":    -4,
+			"message": "验证码不正确",
 		})
 		return
 	}
@@ -138,7 +146,7 @@ func Register(c *gin.Context) {
 	var existUser model.User
 	if err := database.DB.Where("email = ?", req.Email).First(&existUser).Error; err == nil {
 		c.JSON(200, gin.H{
-			"code":    -3,
+			"code":    -5,
 			"message": "邮箱已被注册",
 		})
 		return
@@ -147,8 +155,8 @@ func Register(c *gin.Context) {
 	// 4. 检查用户名是否已存在
 	if err := database.DB.Where("user_name = ?", req.UserName).First(&existUser).Error; err == nil {
 		c.JSON(200, gin.H{
-			"code":    -4,
-			"message": "用户名已被占用",
+			"code":    -6,
+			"message": "用户名已被使用",
 		})
 		return
 	}
@@ -157,8 +165,8 @@ func Register(c *gin.Context) {
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
 		c.JSON(200, gin.H{
-			"code":    -6,
-			"message": "注册失败，请稍后再试",
+			"code":    -7,
+			"message": "注册失败, 请稍后再试",
 		})
 		return
 	}
@@ -175,18 +183,8 @@ func Register(c *gin.Context) {
 
 	if err := database.DB.Create(&user).Error; err != nil {
 		c.JSON(200, gin.H{
-			"code":    -6,
-			"message": "注册失败，请稍后再试",
-		})
-		return
-	}
-
-	// 7. 生成 JWT Token
-	token, err := utils.GenerateToken(user.ID, user.UserName)
-	if err != nil {
-		c.JSON(200, gin.H{
-			"code":    -6,
-			"message": "注册成功，但生成Token失败，请重新登录",
+			"code":    -7,
+			"message": "注册失败, 请稍后再试",
 		})
 		return
 	}
@@ -203,7 +201,6 @@ func Register(c *gin.Context) {
 			"quota":           user.Quota,
 			"used_quota":      user.UsedQuota,
 			"remaining_quota": user.Quota - user.UsedQuota,
-			"token":           token,
 		},
 	})
 }
