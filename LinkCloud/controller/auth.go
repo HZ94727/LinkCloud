@@ -2,7 +2,9 @@ package controller
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
+	"net/http"
 	"time"
 
 	"gitea.com/hz/linkcloud/database"
@@ -39,13 +41,14 @@ func Login(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"code": 0,
 		"data": gin.H{
-			"user_id":         user.ID,
+			"id":              user.ID,
 			"user_name":       user.UserName,
 			"email":           user.Email,
 			"quota":           user.Quota,
 			"used_quota":      user.UsedQuota,
 			"remaining_quota": user.Quota - user.UsedQuota,
 			"token":           token,
+			"created_at":      user.CreatedAt.Unix(),
 		},
 	})
 }
@@ -69,21 +72,22 @@ func SendCaptcha(c *gin.Context) {
 	// 3. 生成6位随机验证码
 	code := fmt.Sprintf("%06d", rand.Intn(1000000))
 
+	fmt.Println("code is: ", code)
+
 	codeKey := fmt.Sprintf("captcha:%s", email)
 	database.Redis.Set(database.Ctx, codeKey, code, 5*time.Minute)
 
 	if err := utils.SendVerificationCode(email, code); err != nil {
 		c.JSON(200, gin.H{
 			"code":    -2,
-			"message": "验证码发送失败，请稍后再试",
+			"message": "验证码发送失败, 请稍后再试",
 		})
 		return
 	}
 
 	c.JSON(200, gin.H{
 		"code":    0,
-		"message": "验证码已发送到邮箱，请注意查收",
-		"data":    nil,
+		"message": "验证码已发送到邮箱, 请注意查收",
 	})
 }
 
@@ -205,4 +209,17 @@ func Register(c *gin.Context) {
 	})
 }
 
-func Logout(c *gin.Context) {}
+func Logout(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	// 可选：记录退出日志
+	log.Printf("用户 %d 退出登录", userID)
+
+	// 可选：清除 Redis 中的 refresh token（如果有）
+	// database.Redis.Del(database.Ctx, fmt.Sprintf("refresh_token:%d", userID))
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "退出成功",
+	})
+}

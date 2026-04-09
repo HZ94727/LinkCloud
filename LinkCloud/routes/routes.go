@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"net/http"
+
 	"gitea.com/hz/linkcloud/controller"
 	"gitea.com/hz/linkcloud/middleware"
 	"github.com/gin-gonic/gin"
@@ -8,6 +10,13 @@ import (
 
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
+
+	r.Any("/", func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    -1,
+			"message": "页面不存在",
+		})
+	})
 
 	// 公开接口
 	r.POST("/api/v1/auth/login", controller.Login)
