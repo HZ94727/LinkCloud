@@ -38,7 +38,7 @@ func (s *AuthService) SendCaptcha(req dto.SendCaptchaRequest) (int, string) {
 	fmt.Println("验证码: ", code)
 
 	if err := utils.SendVerificationCode(req.Email, code); err != nil {
-		return ecode.CodeCaptchaSendFailed, ecode.Message(ecode.CodeCaptchaSendFailed)
+		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
 
 	// 写入 Redis 缓存，5分钟有效
