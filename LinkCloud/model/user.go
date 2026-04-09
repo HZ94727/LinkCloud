@@ -8,8 +8,8 @@ type User struct {
 	UserName  string `gorm:"unique;size:50"`
 	Password  string `gorm:"size:255"`
 	Status    int8   `gorm:"default:1"`
-	Quota     int    `gorm:"default:100"`
-	UsedQuota int    `gorm:"default:0"`
+	Quota     uint32 `gorm:"default:100"`
+	UsedQuota uint32 `gorm:"default:0"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

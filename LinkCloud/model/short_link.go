@@ -15,7 +15,7 @@ type ShortLink struct {
 	Status      int8       `gorm:"default:1"` // 1启用 0禁用
 	Password    string     `gorm:"size:255"`  // 空表示无密码
 	ExpireAt    *time.Time // NULL表示永不过期
-	ClickCount  int        `gorm:"default:0"`
+	ClickCount  uint32     `gorm:"default:0"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Domain      string

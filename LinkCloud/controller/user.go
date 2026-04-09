@@ -6,6 +6,7 @@ import (
 
 	"gitea.com/hz/linkcloud/database"
 	"gitea.com/hz/linkcloud/model"
+	"gitea.com/hz/linkcloud/utils"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -102,7 +103,7 @@ func UpdateUserInfo(c *gin.Context) {
 			})
 			return
 		}
-		if !isValidUserNameLength(*req.UserName) {
+		if !utils.IsValidUserNameLength(*req.UserName) {
 			c.JSON(http.StatusOK, gin.H{
 				"code":    -5,
 				"message": "用户名长度需为3-20个字符",
@@ -144,11 +145,18 @@ func UpdateUserInfo(c *gin.Context) {
 			})
 			return
 		}
+		if !utils.IsValidPasswordLength(*req.NewPassword) {
+			c.JSON(http.StatusOK, gin.H{
+				"code":    -9,
+				"message": "新密码长度需为6-20个字符",
+			})
+			return
+		}
 
 		// 验证旧密码
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(*req.OldPassword)); err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"code":    -9,
+				"code":    -10,
 				"message": "旧密码错误",
 			})
 			return
@@ -158,7 +166,7 @@ func UpdateUserInfo(c *gin.Context) {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*req.NewPassword), bcrypt.DefaultCost)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"code":    -10,
+				"code":    -11,
 				"message": "系统繁忙, 请稍后再试",
 			})
 			return
@@ -170,7 +178,7 @@ func UpdateUserInfo(c *gin.Context) {
 
 	if !hasEffectiveChange {
 		c.JSON(http.StatusOK, gin.H{
-			"code":    -11,
+			"code":    -12,
 			"message": "未检测到需要更新的内容",
 		})
 		return
@@ -180,7 +188,7 @@ func UpdateUserInfo(c *gin.Context) {
 	if len(updates) > 0 {
 		if err := database.DB.Model(&user).Updates(updates).Error; err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"code":    -12,
+				"code":    -13,
 				"message": "更新失败",
 			})
 			return
