@@ -423,7 +423,6 @@ func GetShortLinks(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
 	// 2. 获取筛选条件
-	statusStr := c.Query("status")
 	sortBy := c.DefaultQuery("sort_by", "created_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
 
@@ -436,11 +435,8 @@ func GetShortLinks(c *gin.Context) {
 	query := database.DB.Model(&model.ShortLink{}).Where("user_id = ?", userID)
 
 	// 5. 状态筛选
-	if statusStr != "" {
-		status, err := strconv.Atoi(statusStr)
-		if err == nil && (status == 0 || status == 1) {
-			query = query.Where("status = ?", status)
-		}
+	if status, ok, err := parseBinaryStatus(c.Query("status")); err == nil && ok {
+		query = query.Where("status = ?", status)
 	}
 
 	// 6. 关键字搜索（按字段）
@@ -659,7 +655,7 @@ func UpdateShortLink(c *gin.Context) {
 		Remark      *string `json:"remark"`
 		Password    *string `json:"password"`
 		ExpireAt    *int64  `json:"expire_at"`
-		Status      *int    `json:"status"`
+		Status      *int8   `json:"status"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {

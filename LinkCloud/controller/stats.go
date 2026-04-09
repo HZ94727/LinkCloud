@@ -37,7 +37,7 @@ type accessLogRow struct {
 	DeviceType string    `gorm:"column:device_type"`
 	Referer    string    `gorm:"column:referer"`
 	UserAgent  string    `gorm:"column:user_agent"`
-	Status     int       `gorm:"column:status"`
+	Status     int8      `gorm:"column:status"`
 	ErrorMsg   string    `gorm:"column:error_message"`
 }
 

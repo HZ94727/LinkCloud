@@ -95,7 +95,7 @@ func SendCaptcha(c *gin.Context) {
 func Register(c *gin.Context) {
 	var req struct {
 		Email    string `json:"email" binding:"required,email"`
-		UserName string `json:"user_name" binding:"required,min=3,max=20"`
+		UserName string `json:"user_name" binding:"required"`
 		Password string `json:"password" binding:"required,min=6,max=20"`
 		Captcha  string `json:"captcha" binding:"required,len=6"`
 	}
@@ -104,6 +104,14 @@ func Register(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"code":    -1,
 			"message": "邮箱/用户名/密码/验证码格式不正确",
+		})
+		return
+	}
+
+	if !isValidUserNameLength(req.UserName) {
+		c.JSON(200, gin.H{
+			"code":    -1,
+			"message": "用户名长度需为3-20个字符",
 		})
 		return
 	}
