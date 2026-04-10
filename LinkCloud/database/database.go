@@ -38,7 +38,7 @@ func initMySQL() error {
 	cfg := config.AppConfig.DB
 
 	// DSN 连接字符串
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=UTC",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
 
 	// 打开连接

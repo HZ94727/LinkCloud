@@ -8,12 +8,14 @@ import (
 
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
-
+	r.StaticFile("/reset-password", "./templates/reset_password.html")
 	// 公开接口
 	r.POST("/api/v1/auth/login", controller.Login)
 	r.POST("/api/v1/auth/register", controller.Register)
 	r.POST("/api/v1/auth/captcha", controller.SendCaptcha)
 	r.GET("/:short_code", controller.Redirect)
+	r.POST("/api/v1/auth/forgot", controller.ForgotPassword)
+	r.POST("/api/v1/auth/reset", controller.ResetPassword)
 
 	// 需要认证的接口
 	api := r.Group("/api/v1")
