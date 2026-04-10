@@ -29,7 +29,7 @@ func (r *UserRepository) GetByUserName(userName string) (*model.User, error) {
 }
 
 func (r *UserRepository) Create(user *model.User) error {
-	return database.DB.Create(user).Error
+	return database.DB.Omit("created_at", "updated_at").Create(user).Error
 }
 
 func (r *UserRepository) GetByID(id uint64) (*model.User, error) {
@@ -45,8 +45,7 @@ func (r *UserRepository) IncreaseUsedQuota(db *gorm.DB, id uint64, delta uint32)
 		db = database.DB
 	}
 
-	return db.Model(&model.User{}).
-		Where("id = ?", id).
+	return db.Model(&model.User{}).Where("id = ?", id).Omit("updated_at").
 		Update("used_quota", gorm.Expr("used_quota + ?", delta)).Error
 }
 
@@ -63,5 +62,15 @@ func (r *UserRepository) Update(db *gorm.DB, user *model.User, updates map[strin
 		db = database.DB
 	}
 
-	return db.Model(user).Updates(updates).Error
+	return db.Model(user).Omit("updated_at").Updates(updates).Error
+}
+
+func (r *UserRepository) GetByEmailAndUserName(email, userName string) (*model.User, error) {
+	var user model.User
+	err := database.DB.Where("email = ? AND user_name = ?", email, userName).
+		First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }

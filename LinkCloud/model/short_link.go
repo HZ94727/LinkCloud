@@ -25,3 +25,17 @@ type ShortLink struct {
 func (ShortLink) TableName() string {
 	return "short_links"
 }
+
+// 创建钩子函数，在写入数据库的时候，将时间精确到秒
+func (link *ShortLink) BeforeCreate(tx *gorm.DB) error {
+	now := time.Now().Truncate(time.Second)
+	link.CreatedAt = now
+	// link.UpdatedAt = now
+	return nil
+}
+
+func (link *ShortLink) BeforeUpdate(tx *gorm.DB) error {
+	// 注意：Updates(map) 不会使用这个值，需要在 Repository 层手动设置
+	// link.UpdatedAt = time.Now().Truncate(time.Second)
+	return nil
+}

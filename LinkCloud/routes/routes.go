@@ -1,8 +1,6 @@
 package routes
 
 import (
-	"net/http"
-
 	"gitea.com/hz/linkcloud/controller"
 	"gitea.com/hz/linkcloud/middleware"
 	"github.com/gin-gonic/gin"
@@ -10,19 +8,14 @@ import (
 
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
-
-	r.Any("/", func(ctx *gin.Context) {
-		ctx.JSON(http.StatusOK, gin.H{
-			"code":    -1,
-			"message": "页面不存在",
-		})
-	})
-
+	r.StaticFile("/reset-password", "./templates/reset_password.html")
 	// 公开接口
 	r.POST("/api/v1/auth/login", controller.Login)
 	r.POST("/api/v1/auth/register", controller.Register)
 	r.POST("/api/v1/auth/captcha", controller.SendCaptcha)
 	r.GET("/:short_code", controller.Redirect)
+	r.POST("/api/v1/auth/forgot", controller.ForgotPassword)
+	r.POST("/api/v1/auth/reset", controller.ResetPassword)
 
 	// 需要认证的接口
 	api := r.Group("/api/v1")

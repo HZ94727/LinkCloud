@@ -102,7 +102,6 @@ func (s *LinkService) CreateShortLink(userID uint64, req dto.CreateShortLinkRequ
 		ExpireAt:    req.ExpireAt,
 		ClickCount:  shortLink.ClickCount,
 		CreatedAt:   shortLink.CreatedAt.Unix(),
-		UpdatedAt:   shortLink.UpdatedAt.Unix(),
 	}
 
 	go s.linkRepo.SetCachedShortLink(shortLink)
@@ -283,16 +282,17 @@ func (s *LinkService) UpdateShortLink(userID uint64, shortCode string, req dto.U
 		}
 	}
 
+	// 传 null 表示清除到期时间
+	if req.ExpireAt == nil {
+		updates["expire_at"] = nil
+	}
+
 	if req.ExpireAt != nil {
-		if *req.ExpireAt == 0 {
-			updates["expire_at"] = nil
-		} else {
-			expireTime := time.Unix(*req.ExpireAt, 0)
-			if expireTime.Before(time.Now()) {
-				return nil, ecode.CodeExpireAtInvalid, ecode.Message(ecode.CodeExpireAtInvalid)
-			}
-			updates["expire_at"] = expireTime
+		expireTime := time.Unix(*req.ExpireAt, 0)
+		if expireTime.Before(time.Now()) {
+			return nil, ecode.CodeExpireAtInvalid, ecode.Message(ecode.CodeExpireAtInvalid)
 		}
+		updates["expire_at"] = expireTime
 	}
 
 	if req.Status != nil {

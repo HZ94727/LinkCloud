@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"time"
 
+	"gitea.com/hz/linkcloud/database"
 	"gitea.com/hz/linkcloud/dto"
 	"gitea.com/hz/linkcloud/ecode"
 	"gitea.com/hz/linkcloud/model"
@@ -34,10 +36,7 @@ func DefaultAuthService() *AuthService {
 func (s *AuthService) SendCaptcha(req dto.SendCaptchaRequest) (int, string) {
 	// 随机生成6位数字验证码
 	code := fmt.Sprintf("%06d", rand.Intn(1000000))
-
-	fmt.Println("验证码: ", code)
-
-	if err := utils.SendVerificationCode(req.Email, code); err != nil {
+	if err := utils.SendCaptcha(req.Email, code); err != nil {
 		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
 
@@ -139,8 +138,6 @@ func (s *AuthService) Register(req dto.RegisterRequest) (*dto.RegisterResponse, 
 		return nil, ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
 
-	fmt.Print(user)
-
 	return &dto.RegisterResponse{
 		ID:             user.ID,
 		Email:          user.Email,
@@ -150,4 +147,71 @@ func (s *AuthService) Register(req dto.RegisterRequest) (*dto.RegisterResponse, 
 		UsedQuota:      user.UsedQuota,
 		RemainingQuota: user.Quota - user.UsedQuota,
 	}, ecode.CodeOK, "注册成功"
+}
+
+func (s *AuthService) ForgotPassword(req dto.ForgotPasswordRequest) (int, string) {
+	user, err := s.userRepo.GetByEmailAndUserName(req.Email, req.UserName)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ecode.CodeNotFound, "邮箱或用户名不匹配"
+	}
+	fmt.Println(user, err)
+
+	if err != nil {
+		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+
+	resetToken, err := utils.GenerateResetToken()
+	if err != nil {
+		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+
+	key := fmt.Sprintf("reset:%s", resetToken)
+	err = database.Redis.Set(database.Ctx, key, user.ID, 1*time.Hour).Err()
+	if err != nil {
+		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+
+	// baseURL := "http://192.168.10.27:8080/api/v1/auth/reset"
+	baseURL := "http://192.168.10.27:8080/reset-password" // 改成你的后端地址
+	resetURL := fmt.Sprintf("%s?token=%s", baseURL, resetToken)
+	if err := utils.SendResetLink(req.Email, resetURL); err != nil {
+		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+
+	return ecode.CodeOK, "重置链接已发送到您的邮箱, 请注意查收"
+}
+
+func (s *AuthService) ResetPassword(req dto.ResetPasswordRequest) (int, string) {
+	key := fmt.Sprintf("%s:%s", "reset", req.Token)
+	id, err := database.Redis.Get(database.Ctx, key).Result()
+
+	if err == redis.Nil {
+		return ecode.CodeNotFound, "重置链接无效或已过期"
+	}
+
+	if err != nil {
+		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+
+	userID, err := strconv.ParseUint(id, 10, 32)
+	if err != nil {
+		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+
+	user := &model.User{
+		ID: userID,
+	}
+
+	newPassword, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+
+	updates := make(map[string]any)
+	updates["password"] = newPassword
+
+	if err := s.userRepo.Update(database.DB, user, updates); err != nil {
+		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+	return ecode.CodeOK, "重置密码成功"
 }

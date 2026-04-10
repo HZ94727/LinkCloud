@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -106,5 +107,45 @@ func Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "退出成功",
+	})
+}
+
+func ForgotPassword(c *gin.Context) {
+	var req dto.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(200, gin.H{
+			"code":    ecode.CodeInvalidParam,
+			"message": ecode.Message(ecode.CodeInvalidParam),
+		})
+		return
+	}
+
+	authService := service.DefaultAuthService()
+	code, message := authService.ForgotPassword(req)
+
+	c.JSON(200, gin.H{
+		"code":    code,
+		"message": message,
+	})
+}
+
+func ResetPassword(c *gin.Context) {
+	var req dto.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(200, gin.H{
+			"code":    ecode.CodeInvalidParam,
+			"message": ecode.Message(ecode.CodeInvalidParam),
+		})
+		return
+	}
+
+	authService := service.DefaultAuthService()
+	code, message := authService.ResetPassword(req)
+
+	fmt.Println(code, message)
+
+	c.JSON(200, gin.H{
+		"code":    code,
+		"message": message,
 	})
 }

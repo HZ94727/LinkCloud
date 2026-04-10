@@ -130,7 +130,7 @@ func (r *ShortLinkRepository) Create(db *gorm.DB, link *model.ShortLink) error {
 		db = database.DB
 	}
 
-	return db.Create(link).Error
+	return db.Omit("created_at", "updated_at").Create(link).Error
 }
 
 func (r *ShortLinkRepository) Update(db *gorm.DB, link *model.ShortLink, updates map[string]any) error {
@@ -138,7 +138,7 @@ func (r *ShortLinkRepository) Update(db *gorm.DB, link *model.ShortLink, updates
 		db = database.DB
 	}
 
-	return db.Model(link).Updates(updates).Error
+	return db.Model(link).Omit("updated_at").Updates(updates).Error
 }
 
 func (r *ShortLinkRepository) Delete(db *gorm.DB, link *model.ShortLink) error {

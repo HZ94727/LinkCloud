@@ -36,3 +36,13 @@ type RegisterResponse struct {
 	UsedQuota      uint32 `json:"used_quota"`
 	RemainingQuota uint32 `json:"remaining_quota"`
 }
+
+type ForgotPasswordRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	UserName string `json:"user_name" binding:"required"`
+}
+
+type ResetPasswordRequest struct {
+	NewPassword string `json:"new_password" binding:"required"`
+	Token       string `json:"token" binding:"required"`
+}

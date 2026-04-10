@@ -19,7 +19,6 @@ type CreateShortLinkResponse struct {
 	ExpireAt    int64  `json:"expire_at"`
 	ClickCount  uint32 `json:"click_count"`
 	CreatedAt   int64  `json:"created_at"`
-	UpdatedAt   int64  `json:"updated_at"`
 }
 
 type ShortLinkListRequest struct {

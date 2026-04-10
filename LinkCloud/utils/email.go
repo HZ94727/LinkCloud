@@ -1,7 +1,11 @@
 package utils
 
 import (
+	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"html/template"
 	"log"
 
 	"github.com/wneessen/go-mail"
@@ -49,27 +53,51 @@ func SendEmail(to, subject, body string) error {
 }
 
 // SendVerificationCode 发送验证码专用函数
-func SendVerificationCode(email, code string) error {
+func SendCaptcha(email, code string) error {
+	tmpl, err := template.ParseFiles("templates/verification_code.html")
+	if err != nil {
+		return err
+	}
+
 	subject := "【LinkCloud】邮箱验证码"
 
-	body := fmt.Sprintf(`
-        <!DOCTYPE html>
-        <html>
-        <head><meta charset="UTF-8"></head>
-        <body style="font-family: Arial, sans-serif;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-                <h2 style="color: #1a73e8;">LinkCloud</h2>
-                <p>您好，</p>
-                <p>您正在注册 LinkCloud 账号，验证码是：</p>
-                <p style="font-size: 32px; font-weight: bold; color: #1a73e8; letter-spacing: 4px;">%s</p>
-                <p style="color: #666;">验证码 5 分钟内有效，请勿泄露给他人。</p>
-                <p style="color: #999; font-size: 12px;">如果不是您本人操作，请忽略此邮件。</p>
-                <hr style="border: none; border-top: 1px solid #e0e0e0;">
-                <p style="color: #999; font-size: 12px;">© 2026 LinkCloud 短链云</p>
-            </div>
-        </body>
-        </html>
-    `, code)
+	data := map[string]any{
+		"Code": code,
+	}
 
-	return SendEmail(email, subject, body)
+	var body bytes.Buffer
+	if err := tmpl.Execute(&body, data); err != nil {
+		return err
+	}
+
+	return SendEmail(email, subject, body.String())
+}
+
+// SendResetLink 发送重置密码链接
+func SendResetLink(email, resetURL string) error {
+	tmpl, err := template.ParseFiles("templates/reset_link.html")
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	data := map[string]interface{}{
+		"ResetURL": resetURL,
+	}
+
+	var body bytes.Buffer
+	if err := tmpl.Execute(&body, data); err != nil {
+		return err
+	}
+
+	return SendEmail(email, "重置密码", body.String())
+}
+
+// GenerateResetToken 生成重置密码的随机 token
+func GenerateResetToken() (string, error) {
+	bytes := make([]byte, 16) // 32 字节 = 64 位 hex
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
 }

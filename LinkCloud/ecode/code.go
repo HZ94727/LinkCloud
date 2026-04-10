@@ -52,7 +52,7 @@ var messages = map[int]string{
 	CodeInvalidParam:    "请求参数不完整或格式不正确",
 	CodeUnauthorized:    "未登录或登录已过期",
 	CodeForbidden:       "无权限",
-	CodeNotFound:        "资源不存在",
+	CodeNotFound:        "页面不存在",
 	CodeNothingToUpdate: "未检测到需要更新的内容",
 
 	CodeCaptchaExpired:           "验证码已过期, 请重新获取",
