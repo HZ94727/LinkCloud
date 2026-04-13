@@ -53,7 +53,7 @@ func SendEmail(to, subject, body string) error {
 }
 
 // SendVerificationCode 发送验证码专用函数
-func SendCaptcha(email, code string) error {
+func SendCaptcha(email, captcha string) error {
 	tmpl, err := template.ParseFiles("templates/verification_code.html")
 	if err != nil {
 		return err
@@ -62,7 +62,7 @@ func SendCaptcha(email, code string) error {
 	subject := "【LinkCloud】邮箱验证码"
 
 	data := map[string]any{
-		"Code": code,
+		"Captcha": captcha,
 	}
 
 	var body bytes.Buffer

@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
 	"strconv"
 	"time"
@@ -35,13 +36,13 @@ func DefaultAuthService() *AuthService {
 
 func (s *AuthService) SendCaptcha(req dto.SendCaptchaRequest) (int, string) {
 	// 随机生成6位数字验证码
-	code := fmt.Sprintf("%06d", rand.Intn(1000000))
-	if err := utils.SendCaptcha(req.Email, code); err != nil {
+	captcha := fmt.Sprintf("%06d", rand.Intn(1000000))
+	if err := utils.SendCaptcha(req.Email, captcha); err != nil {
 		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
 
 	// 写入 Redis 缓存，5分钟有效
-	if err := s.captchaRepo.Set(req.Email, code, 5*time.Minute); err != nil {
+	if err := s.captchaRepo.Set(req.Email, captcha, 5*time.Minute); err != nil {
 		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
 
@@ -86,9 +87,12 @@ func (s *AuthService) Register(req dto.RegisterRequest) (*dto.RegisterResponse, 
 
 	// 获取 Redis 存储的验证码
 	storedCode, err := s.captchaRepo.Get(req.Email)
+
+	log.Println("stortCode and err is: ", storedCode, err)
+
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			return nil, ecode.CodeCaptchaExpired, ecode.Message(ecode.CodeCaptchaExpired)
+			return nil, ecode.CodeCaptchaNotFound, ecode.Message(ecode.CodeCaptchaNotFound)
 		}
 		return nil, ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
@@ -104,18 +108,23 @@ func (s *AuthService) Register(req dto.RegisterRequest) (*dto.RegisterResponse, 
 	}
 
 	// 尝试查找邮箱, 且找到
-	if _, err := s.userRepo.GetByEmail(req.Email); err == nil {
-		return nil, ecode.CodeEmailAlreadyRegistered, ecode.Message(ecode.CodeEmailAlreadyRegistered)
-		// 数据库查询过程出现异常
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	emailExists, err := s.userRepo.ExistsByEmail(req.Email)
+	if err != nil {
 		return nil, ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
 
+	if emailExists {
+		return nil, ecode.CodeEmailAlreadyRegistered, ecode.Message(ecode.CodeEmailAlreadyRegistered)
+	}
+
 	// 判断用户是否存在
-	if _, err := s.userRepo.GetByUserName(req.UserName); err == nil {
-		return nil, ecode.CodeUserNameAlreadyUsed, ecode.Message(ecode.CodeUserNameAlreadyUsed)
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	userExists, err := s.userRepo.ExistsByUserName(req.UserName)
+	if err != nil {
 		return nil, ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+
+	if userExists {
+		return nil, ecode.CodeUserNameAlreadyUsed, ecode.Message(ecode.CodeUserNameAlreadyUsed)
 	}
 
 	// 加密密码

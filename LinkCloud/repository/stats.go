@@ -111,6 +111,7 @@ func (r *StatsRepository) QueryStats(shortLinkID uint64, startAt, endAt time.Tim
 
 func (r *StatsRepository) QueryLogs(shortLinkID uint64, startAt, endAt time.Time, page, size int) (*dto.LogListResponse, error) {
 	tables := existingAccessLogTables(startAt, endAt)
+	// 对应日期的日志表不存在
 	if len(tables) == 0 {
 		return &dto.LogListResponse{
 			Total:      0,

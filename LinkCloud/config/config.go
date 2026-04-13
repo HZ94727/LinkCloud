@@ -11,7 +11,7 @@ type MySQLConfig struct {
 	Port     string `yaml:"port"`
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
-	Database string `yaml:"schema"`
+	Schema   string `yaml:"schema"`
 }
 
 type RedisConfig struct {
@@ -57,5 +57,5 @@ func Init() {
 
 // 方便使用的方法
 func (c *MySQLConfig) DSN() string {
-	return c.User + ":" + c.Password + "@tcp(" + c.Host + ":" + c.Port + ")/" + c.Database + "?charset=utf8mb4&parseTime=True"
+	return c.User + ":" + c.Password + "@tcp(" + c.Host + ":" + c.Port + ")/" + c.Schema + "?charset=utf8mb4&parseTime=True"
 }

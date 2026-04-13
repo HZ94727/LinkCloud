@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -141,8 +140,6 @@ func ResetPassword(c *gin.Context) {
 
 	authService := service.DefaultAuthService()
 	code, message := authService.ResetPassword(req)
-
-	fmt.Println(code, message)
 
 	c.JSON(200, gin.H{
 		"code":    code,

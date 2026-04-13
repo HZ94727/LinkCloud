@@ -2,7 +2,6 @@ package controller
 
 import (
 	"net/http"
-	"strings"
 
 	"gitea.com/hz/linkcloud/dto"
 	"gitea.com/hz/linkcloud/ecode"
@@ -13,13 +12,6 @@ import (
 func Redirect(c *gin.Context) {
 	shortCode := c.Param("short_code")
 	password := c.Query("password")
-	if strings.TrimSpace(shortCode) == "" {
-		c.JSON(http.StatusOK, gin.H{
-			"code":    ecode.CodeShortCodeEmpty,
-			"message": ecode.Message(ecode.CodeShortCodeEmpty),
-		})
-		return
-	}
 
 	link, code, message := service.DefaultLinkService().ResolveShortLink(
 		shortCode,

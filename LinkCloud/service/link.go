@@ -49,12 +49,15 @@ func (s *LinkService) CreateShortLink(userID uint64, req dto.CreateShortLinkRequ
 		return nil, ecode.CodeQuotaInsufficient, ecode.Message(ecode.CodeQuotaInsufficient)
 	}
 
+	// 生成唯一的短码
 	shortCode, err := s.generateUniqueShortCode()
 	if err != nil {
 		return nil, ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
 
 	var expireAt *time.Time
+
+	// 设置的短码没有过期时间，req.ExpireAt 为 0
 	if req.ExpireAt > 0 {
 		t := time.Unix(req.ExpireAt, 0)
 		expireAt = &t
@@ -104,17 +107,13 @@ func (s *LinkService) CreateShortLink(userID uint64, req dto.CreateShortLinkRequ
 		CreatedAt:   shortLink.CreatedAt.Unix(),
 	}
 
+	// 异步写入缓存
 	go s.linkRepo.SetCachedShortLink(shortLink)
 
 	return response, ecode.CodeOK, "生成成功"
 }
 
 func (s *LinkService) ResolveShortLink(shortCode, password, clientIP, userAgent, referer string) (*model.ShortLink, int, string) {
-	shortCode = strings.TrimSpace(shortCode)
-	if shortCode == "" {
-		return nil, ecode.CodeShortCodeEmpty, ecode.Message(ecode.CodeShortCodeEmpty)
-	}
-
 	nowUTC := time.Now().UTC()
 	year, month, _ := nowUTC.Date()
 	tableName := fmt.Sprintf("access_logs_%d%02d", year, month)
@@ -130,27 +129,25 @@ func (s *LinkService) ResolveShortLink(shortCode, password, clientIP, userAgent,
 		"error_message": nil,
 	}
 
+	// TODO: 这里的话如果是 redis 出现的问题，但是数据库没问题，那么逻辑应该要修改一下
 	link, err := s.resolveShortLink(shortCode)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logData["error_message"] = ecode.Message(ecode.CodeShortLinkNotFound)
-			s.linkRepo.SaveAccessLog(tableName, logData)
 			return nil, ecode.CodeShortLinkNotFound, ecode.Message(ecode.CodeShortLinkNotFound)
 		}
-
-		logData["error_message"] = ecode.Message(ecode.CodeSystemBusy)
-		s.linkRepo.SaveAccessLog(tableName, logData)
 		return nil, ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
 
 	logData["short_code_id"] = link.ID
 
+	// 连接有过期时间，并且现在的时间在过期时间之后，说明链接已过期
 	if link.ExpireAt != nil && nowUTC.After(*link.ExpireAt) {
 		logData["error_message"] = ecode.Message(ecode.CodeShortLinkExpired)
 		s.linkRepo.SaveAccessLog(tableName, logData)
 		return nil, ecode.CodeShortLinkExpired, ecode.Message(ecode.CodeShortLinkExpired)
 	}
 
+	// 链接已被禁用
 	if link.Status == 0 {
 		logData["error_message"] = ecode.Message(ecode.CodeShortLinkDisabled)
 		s.linkRepo.SaveAccessLog(tableName, logData)
@@ -227,11 +224,6 @@ func (s *LinkService) ListShortLinks(userID uint64, req dto.ShortLinkListRequest
 }
 
 func (s *LinkService) GetShortLinkDetail(userID uint64, shortCode, baseURL string) (*dto.ShortLinkDetailResponse, int, string) {
-	shortCode = strings.TrimSpace(shortCode)
-	if shortCode == "" {
-		return nil, ecode.CodeShortCodeEmpty, ecode.Message(ecode.CodeShortCodeEmpty)
-	}
-
 	link, err := s.linkRepo.GetOwnedByShortCode(userID, shortCode)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

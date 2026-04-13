@@ -84,6 +84,7 @@ func (s *StatsService) GetLogs(userID uint64, shortCode string, page, size int, 
 	return resp, ecode.CodeOK, "ok"
 }
 
+// unix 时间戳转换为UTC时间
 func parseUnixQuery(raw string) (time.Time, bool) {
 	if raw == "" {
 		return time.Time{}, false

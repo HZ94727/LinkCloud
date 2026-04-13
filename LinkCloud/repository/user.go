@@ -74,3 +74,31 @@ func (r *UserRepository) GetByEmailAndUserName(email, userName string) (*model.U
 	}
 	return &user, nil
 }
+
+func (r *UserRepository) ExistsByEmail(email string) (bool, error) {
+	var count int64
+	err := database.DB.
+		Model(&model.User{}).
+		Where("email = ?", email).
+		Limit(1).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *UserRepository) ExistsByUserName(userName string) (bool, error) {
+	var count int64
+	err := database.DB.
+		Model(&model.User{}).
+		Where("user_name = ?", userName).
+		Limit(1).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}

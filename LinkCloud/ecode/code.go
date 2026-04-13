@@ -11,7 +11,7 @@ const (
 	CodeNothingToUpdate = 1005
 
 	// 1100-1199 认证/用户
-	CodeCaptchaExpired           = 1101
+	CodeCaptchaNotFound          = 1101
 	CodeCaptchaInvalid           = 1102
 	CodeUserNotFound             = 1103
 	CodeUserNameOrPasswordBad    = 1104
@@ -55,7 +55,7 @@ var messages = map[int]string{
 	CodeNotFound:        "页面不存在",
 	CodeNothingToUpdate: "未检测到需要更新的内容",
 
-	CodeCaptchaExpired:           "验证码已过期, 请重新获取",
+	CodeCaptchaNotFound:          "验证码不存在或已过期, 请重新获取",
 	CodeCaptchaInvalid:           "验证码不正确",
 	CodeUserNotFound:             "用户不存在",
 	CodeUserNameOrPasswordBad:    "用户名或密码错误",

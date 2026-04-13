@@ -18,6 +18,8 @@ func main() {
 	}
 	defer database.Close() // 程序退出时关闭连接
 
+	log.SetFlags(log.Lshortfile | log.Ltime | log.Ldate)
+
 	// 启动服务
 	// gin.SetMode(gin.ReleaseMode)
 	r := routes.SetupRouter()
