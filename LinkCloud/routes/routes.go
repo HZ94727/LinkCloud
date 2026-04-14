@@ -16,13 +16,13 @@ func SetupRouter() *gin.Engine {
 	auth := r.Group("/api/v1/auth")
 	{
 		auth.POST("/login", controller.Login)
-		auth.POST("/register", controller.Register)
-		auth.POST("/captcha", controller.SendCaptcha)
-		auth.POST("/forgot", controller.ForgotPassword)
-		auth.POST("/reset", controller.ResetPassword)
+		auth.POST("/register", middleware.TokenBucketRateLimit("auth-register", 10, 5), controller.Register)
+		auth.POST("/captcha", middleware.TokenBucketRateLimit("auth-captcha", 5, 1), controller.SendCaptcha)
+		auth.POST("/forgot", middleware.TokenBucketRateLimit("auth-forgot", 6, 3), controller.ForgotPassword)
+		auth.POST("/reset", middleware.TokenBucketRateLimit("auth-reset", 6, 3), controller.ResetPassword)
 	}
 
-	r.GET("/:short_code", controller.Redirect)
+	r.GET("/:short_code", middleware.TokenBucketRateLimit("short-link", 50, 25), controller.Redirect)
 
 	// 需要认证的接口
 	api := r.Group("/api/v1")

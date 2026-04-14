@@ -26,6 +26,8 @@ const (
 	CodeNewPasswordLengthInvalid = 1113
 	CodeOldPasswordInvalid       = 1114
 	CodeNeedRelogin              = 1115
+	CodeCaptchaSendTooFrequent   = 1116
+	CodeLoginLocked              = 1117
 
 	// 1200-1299 短链接
 	CodeOriginalURLInvalid    = 1201
@@ -38,12 +40,14 @@ const (
 	CodeShortLinkPasswordBad  = 1208
 	CodeExpireAtInvalid       = 1209
 	CodeStatusInvalid         = 1210
+	CodeShortLinkPasswordLock = 1211
 
 	// 1300-1399 统计/日志
 	CodeTimeRangeInvalid = 1301
 
 	// 1900-1999 系统
-	CodeSystemBusy = 1901
+	CodeSystemBusy      = 1901
+	CodeTooManyRequests = 1902
 )
 
 var messages = map[int]string{
@@ -70,6 +74,8 @@ var messages = map[int]string{
 	CodeNewPasswordLengthInvalid: "新密码长度需为6-20个字符",
 	CodeOldPasswordInvalid:       "旧密码错误",
 	CodeNeedRelogin:              "用户信息修改成功，请重新登录",
+	CodeCaptchaSendTooFrequent:   "操作太频繁, 请60秒后再试",
+	CodeLoginLocked:              "密码错误次数过多, 请15分钟后重试",
 
 	CodeOriginalURLInvalid:    "原始链接格式不正确",
 	CodeQuotaInsufficient:     "配额不足, 请充值",
@@ -81,10 +87,12 @@ var messages = map[int]string{
 	CodeShortLinkPasswordBad:  "密码错误",
 	CodeExpireAtInvalid:       "过期时间不能早于当前时间",
 	CodeStatusInvalid:         "状态值无效, 只能为0或1",
+	CodeShortLinkPasswordLock: "密码错误次数过多, 请5分钟后重试",
 
 	CodeTimeRangeInvalid: "时间范围无效",
 
-	CodeSystemBusy: "系统繁忙, 请稍后再试",
+	CodeSystemBusy:      "系统繁忙, 请稍后再试",
+	CodeTooManyRequests: "请求过于频繁, 请稍后再试",
 }
 
 func Message(code int) string {

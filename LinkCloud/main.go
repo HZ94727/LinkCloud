@@ -1,12 +1,23 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"time"
 
 	"gitea.com/hz/linkcloud/config"
 	"gitea.com/hz/linkcloud/database"
 	"gitea.com/hz/linkcloud/routes"
+	"github.com/gin-gonic/gin"
 )
+
+func Test() {
+	var testNumber uint32 = 78
+	go func() {
+		fmt.Println("testNumber is: ", testNumber)
+		time.Sleep(time.Second * 10)
+	}()
+}
 
 func main() {
 	// 初始化配置
@@ -21,7 +32,8 @@ func main() {
 	log.SetFlags(log.Lshortfile | log.Ltime | log.Ldate)
 
 	// 启动服务
-	// gin.SetMode(gin.ReleaseMode)
+	gin.SetMode(gin.ReleaseMode)
 	r := routes.SetupRouter()
+	fmt.Println("Server is Listen on: 0.0.0.0:8080")
 	r.Run(":8080")
 }

@@ -3,9 +3,11 @@ package controller
 import (
 	"log"
 	"net/http"
+	"strconv"
 
 	"gitea.com/hz/linkcloud/dto"
 	"gitea.com/hz/linkcloud/ecode"
+	"gitea.com/hz/linkcloud/repository"
 	"gitea.com/hz/linkcloud/service"
 	"github.com/gin-gonic/gin"
 )
@@ -20,8 +22,28 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	securityRepo := repository.NewSecurityRepository()
+	allowed, retryMS, err := securityRepo.AllowTokenBucketByKey("auth-login", c.ClientIP()+":"+req.UserName, 10, 5)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"code":    ecode.CodeSystemBusy,
+			"message": ecode.Message(ecode.CodeSystemBusy),
+		})
+		return
+	}
+	if !allowed {
+		if retryMS > 0 {
+			c.Header("Retry-After", strconv.FormatInt((retryMS+999)/1000, 10))
+		}
+		c.JSON(http.StatusTooManyRequests, gin.H{
+			"code":    ecode.CodeTooManyRequests,
+			"message": ecode.Message(ecode.CodeTooManyRequests),
+		})
+		return
+	}
+
 	authService := service.DefaultAuthService()
-	resp, code, message := authService.Login(req)
+	resp, code, message := authService.Login(req, c.ClientIP())
 	if code != 0 {
 		c.JSON(200, gin.H{
 			"code":    code,

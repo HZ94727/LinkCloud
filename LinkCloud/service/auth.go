@@ -3,7 +3,6 @@ package service
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
 	"strconv"
 	"time"
@@ -19,48 +18,91 @@ import (
 )
 
 type AuthService struct {
-	userRepo    *repository.UserRepository
-	captchaRepo *repository.CaptchaRepository
+	userRepo     *repository.UserRepository
+	captchaRepo  *repository.CaptchaRepository
+	securityRepo *repository.SecurityRepository
 }
 
-func NewAuthService(userRepo *repository.UserRepository, captchaRepo *repository.CaptchaRepository) *AuthService {
+func NewAuthService(userRepo *repository.UserRepository, captchaRepo *repository.CaptchaRepository, securityRepo *repository.SecurityRepository) *AuthService {
 	return &AuthService{
-		userRepo:    userRepo,
-		captchaRepo: captchaRepo,
+		userRepo:     userRepo,
+		captchaRepo:  captchaRepo,
+		securityRepo: securityRepo,
 	}
 }
 
 func DefaultAuthService() *AuthService {
-	return NewAuthService(repository.NewUserRepository(), repository.NewCaptchaRepository())
+	return NewAuthService(repository.NewUserRepository(), repository.NewCaptchaRepository(), repository.NewSecurityRepository())
 }
 
 func (s *AuthService) SendCaptcha(req dto.SendCaptchaRequest) (int, string) {
+	ok, err := s.securityRepo.TryAcquireCaptchaCooldown(req.Email, time.Minute)
+	if err != nil {
+		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+	if !ok {
+		return ecode.CodeCaptchaSendTooFrequent, ecode.Message(ecode.CodeCaptchaSendTooFrequent)
+	}
+
 	// 随机生成6位数字验证码
 	captcha := fmt.Sprintf("%06d", rand.Intn(1000000))
 	if err := utils.SendCaptcha(req.Email, captcha); err != nil {
+		_ = s.securityRepo.ReleaseCaptchaCooldown(req.Email)
 		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
 
 	// 写入 Redis 缓存，5分钟有效
 	if err := s.captchaRepo.Set(req.Email, captcha, 5*time.Minute); err != nil {
+		_ = s.securityRepo.ReleaseCaptchaCooldown(req.Email)
 		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
 
 	return ecode.CodeOK, "验证码已发送到邮箱, 请注意查收"
 }
 
-func (s *AuthService) Login(req dto.LoginRequest) (*dto.LoginResponse, int, string) {
+func (s *AuthService) Login(req dto.LoginRequest, clientIP string) (*dto.LoginResponse, int, string) {
+	locked, err := s.securityRepo.IsLoginLocked(clientIP, req.UserName)
+	if err != nil {
+		return nil, ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+	if locked {
+		return nil, ecode.CodeLoginLocked, ecode.Message(ecode.CodeLoginLocked)
+	}
+
 	user, err := s.userRepo.GetByUserName(req.UserName)
 	if err != nil {
-		return nil, ecode.CodeUserNameOrPasswordBad, ecode.Message(ecode.CodeUserNameOrPasswordBad)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 出现错误, 记录登录失败
+			locked, recordErr := s.securityRepo.RecordLoginFailure(clientIP, req.UserName, 5, 15*time.Minute)
+			if recordErr != nil {
+				return nil, ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+			}
+			if locked {
+				return nil, ecode.CodeLoginLocked, ecode.Message(ecode.CodeLoginLocked)
+			}
+			return nil, ecode.CodeUserNameOrPasswordBad, ecode.Message(ecode.CodeUserNameOrPasswordBad)
+		}
+		return nil, ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
 
 	if !utils.CheckPasswordHash(req.Password, user.Password) {
+		locked, recordErr := s.securityRepo.RecordLoginFailure(clientIP, req.UserName, 5, 15*time.Minute)
+		if recordErr != nil {
+			return nil, ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+		}
+		if locked {
+			return nil, ecode.CodeLoginLocked, ecode.Message(ecode.CodeLoginLocked)
+		}
 		return nil, ecode.CodeUserNameOrPasswordBad, ecode.Message(ecode.CodeUserNameOrPasswordBad)
 	}
 
 	token, err := utils.GenerateToken(user.ID, user.UserName)
 	if err != nil {
+		return nil, ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+
+	// 可以登录，清除原来登录失败在 Redis 中写入的数据
+	if err := s.securityRepo.ClearLoginFailures(clientIP, req.UserName); err != nil {
 		return nil, ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
 
@@ -87,9 +129,6 @@ func (s *AuthService) Register(req dto.RegisterRequest) (*dto.RegisterResponse, 
 
 	// 获取 Redis 存储的验证码
 	storedCode, err := s.captchaRepo.Get(req.Email)
-
-	log.Println("stortCode and err is: ", storedCode, err)
-
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return nil, ecode.CodeCaptchaNotFound, ecode.Message(ecode.CodeCaptchaNotFound)

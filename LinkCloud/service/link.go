@@ -17,19 +17,21 @@ import (
 )
 
 type LinkService struct {
-	userRepo *repository.UserRepository
-	linkRepo *repository.ShortLinkRepository
+	userRepo     *repository.UserRepository
+	linkRepo     *repository.ShortLinkRepository
+	securityRepo *repository.SecurityRepository
 }
 
-func NewLinkService(userRepo *repository.UserRepository, linkRepo *repository.ShortLinkRepository) *LinkService {
+func NewLinkService(userRepo *repository.UserRepository, linkRepo *repository.ShortLinkRepository, securityRepo *repository.SecurityRepository) *LinkService {
 	return &LinkService{
-		userRepo: userRepo,
-		linkRepo: linkRepo,
+		userRepo:     userRepo,
+		linkRepo:     linkRepo,
+		securityRepo: securityRepo,
 	}
 }
 
 func DefaultLinkService() *LinkService {
-	return NewLinkService(repository.NewUserRepository(), repository.NewShortLinkRepository())
+	return NewLinkService(repository.NewUserRepository(), repository.NewShortLinkRepository(), repository.NewSecurityRepository())
 }
 
 func (s *LinkService) CreateShortLink(userID uint64, req dto.CreateShortLinkRequest) (*dto.CreateShortLinkResponse, int, string) {
@@ -154,7 +156,19 @@ func (s *LinkService) ResolveShortLink(shortCode, password, clientIP, userAgent,
 		return nil, ecode.CodeShortLinkDisabled, ecode.Message(ecode.CodeShortLinkDisabled)
 	}
 
+	// 短链接需要密码访问
 	if link.Password != "" {
+		// 判断密码是否被锁定
+		locked, err := s.securityRepo.IsShortCodePasswordLocked(clientIP, shortCode)
+		if err != nil {
+			return nil, ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+		}
+		if locked {
+			logData["error_message"] = ecode.Message(ecode.CodeShortLinkPasswordLock)
+			s.linkRepo.SaveAccessLog(tableName, logData)
+			return nil, ecode.CodeShortLinkPasswordLock, ecode.Message(ecode.CodeShortLinkPasswordLock)
+		}
+
 		if password == "" {
 			logData["error_message"] = ecode.Message(ecode.CodeShortLinkNeedPassword)
 			s.linkRepo.SaveAccessLog(tableName, logData)
@@ -162,9 +176,23 @@ func (s *LinkService) ResolveShortLink(shortCode, password, clientIP, userAgent,
 		}
 
 		if !utils.CheckPasswordHash(password, link.Password) {
+			locked, err := s.securityRepo.RecordShortCodePasswordFailure(clientIP, shortCode, 5, 5*time.Minute)
+			if err != nil {
+				return nil, ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+			}
+			if locked {
+				logData["error_message"] = ecode.Message(ecode.CodeShortLinkPasswordLock)
+				s.linkRepo.SaveAccessLog(tableName, logData)
+				return nil, ecode.CodeShortLinkPasswordLock, ecode.Message(ecode.CodeShortLinkPasswordLock)
+			}
+
 			logData["error_message"] = ecode.Message(ecode.CodeShortLinkPasswordBad)
 			s.linkRepo.SaveAccessLog(tableName, logData)
 			return nil, ecode.CodeShortLinkPasswordBad, ecode.Message(ecode.CodeShortLinkPasswordBad)
+		}
+
+		if err := s.securityRepo.ClearShortCodePasswordFailures(clientIP, shortCode); err != nil {
+			return nil, ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 		}
 	}
 
