@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"net/url"
 
 	"gitea.com/hz/linkcloud/dto"
 	"gitea.com/hz/linkcloud/ecode"
@@ -21,6 +22,11 @@ func Redirect(c *gin.Context) {
 		c.Request.Referer(),
 	)
 	if code != ecode.CodeOK {
+		if code == ecode.CodeShortLinkNeedPassword {
+			c.Redirect(http.StatusFound, "/short-link-password?short_code="+url.QueryEscape(shortCode))
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"code":    code,
 			"message": message,
@@ -78,7 +84,7 @@ func GetShortLinks(c *gin.Context) {
 		Status:     query.Status,
 		Keywords:   keywordMap,
 		FuzzyQuery: query.FuzzyQuery,
-	}, buildShortLinkBaseURL(c))
+	}, buildBaseURL(c))
 
 	if code != ecode.CodeOK {
 		c.JSON(http.StatusOK, gin.H{
@@ -99,7 +105,7 @@ func GetShortLink(c *gin.Context) {
 	shortCode := c.Param("short_code")
 
 	linkService := service.DefaultLinkService()
-	resp, code, message := linkService.GetShortLinkDetail(currentUserID(c), shortCode, buildShortLinkBaseURL(c))
+	resp, code, message := linkService.GetShortLinkDetail(currentUserID(c), shortCode, buildBaseURL(c))
 	if code != ecode.CodeOK {
 		c.JSON(http.StatusOK, gin.H{
 			"code":    code,
@@ -127,7 +133,7 @@ func UpdateShortLink(c *gin.Context) {
 	}
 
 	linkService := service.DefaultLinkService()
-	resp, code, message := linkService.UpdateShortLink(currentUserID(c), shortCode, req, buildShortLinkBaseURL(c))
+	resp, code, message := linkService.UpdateShortLink(currentUserID(c), shortCode, req, buildBaseURL(c))
 	if code != ecode.CodeOK {
 		c.JSON(http.StatusOK, gin.H{
 			"code":    code,
@@ -163,7 +169,7 @@ func DeleteShortLink(c *gin.Context) {
 	})
 }
 
-func buildShortLinkBaseURL(c *gin.Context) string {
+func buildBaseURL(c *gin.Context) string {
 	scheme := "http"
 	if c.Request.TLS != nil {
 		scheme = "https"

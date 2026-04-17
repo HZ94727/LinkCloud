@@ -142,7 +142,7 @@ func ForgotPassword(c *gin.Context) {
 	}
 
 	authService := service.DefaultAuthService()
-	code, message := authService.ForgotPassword(req)
+	code, message := authService.ForgotPassword(req, buildBaseURL(c))
 
 	c.JSON(200, gin.H{
 		"code":    code,
@@ -164,6 +164,17 @@ func ResetPassword(c *gin.Context) {
 	code, message := authService.ResetPassword(req)
 
 	c.JSON(200, gin.H{
+		"code":    code,
+		"message": message,
+	})
+}
+
+func ValidateResetPasswordToken(c *gin.Context) {
+	token := c.Query("token")
+	authService := service.DefaultAuthService()
+	code, message := authService.ValidateResetPasswordToken(token)
+
+	c.JSON(http.StatusOK, gin.H{
 		"code":    code,
 		"message": message,
 	})

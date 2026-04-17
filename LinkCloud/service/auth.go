@@ -197,14 +197,22 @@ func (s *AuthService) Register(req dto.RegisterRequest) (*dto.RegisterResponse, 
 	}, ecode.CodeOK, "注册成功"
 }
 
-func (s *AuthService) ForgotPassword(req dto.ForgotPasswordRequest) (int, string) {
+func (s *AuthService) ForgotPassword(req dto.ForgotPasswordRequest, baseURL string) (int, string) {
 	user, err := s.userRepo.GetByEmailAndUserName(req.Email, req.UserName)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return ecode.CodeNotFound, "邮箱或用户名不匹配"
 	}
-	fmt.Println(user, err)
 
 	if err != nil {
+		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+
+	activeKey := resetPasswordActiveKey(user.ID)
+	activeToken, err := database.Redis.Get(database.Ctx, activeKey).Result()
+	if err == nil && activeToken != "" {
+		return ecode.CodeResetLinkExists, ecode.Message(ecode.CodeResetLinkExists)
+	}
+	if err != nil && err != redis.Nil {
 		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
 
@@ -219,10 +227,15 @@ func (s *AuthService) ForgotPassword(req dto.ForgotPasswordRequest) (int, string
 		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
 
-	// baseURL := "http://192.168.10.27:8080/api/v1/auth/reset"
-	baseURL := "http://192.168.10.27:8080/reset-password" // 改成你的后端地址
-	resetURL := fmt.Sprintf("%s?token=%s", baseURL, resetToken)
+	if err := database.Redis.Set(database.Ctx, activeKey, resetToken, 1*time.Hour).Err(); err != nil {
+		_ = database.Redis.Del(database.Ctx, key).Err()
+		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+
+	resetURL := fmt.Sprintf("%s/reset-password?token=%s", normalizeBaseURL(baseURL), resetToken)
 	if err := utils.SendResetLink(req.Email, resetURL); err != nil {
+		_, _ = database.Redis.Del(database.Ctx, key).Result()
+		_, _ = database.Redis.Del(database.Ctx, activeKey).Result()
 		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
 
@@ -261,5 +274,34 @@ func (s *AuthService) ResetPassword(req dto.ResetPasswordRequest) (int, string) 
 	if err := s.userRepo.Update(database.DB, user, updates); err != nil {
 		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
 	}
+
+	if err := database.Redis.Del(database.Ctx, key).Err(); err != nil {
+		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+	if err := database.Redis.Del(database.Ctx, resetPasswordActiveKey(userID)).Err(); err != nil {
+		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+
 	return ecode.CodeOK, "重置密码成功"
+}
+
+func (s *AuthService) ValidateResetPasswordToken(token string) (int, string) {
+	if token == "" {
+		return ecode.CodeInvalidParam, ecode.Message(ecode.CodeInvalidParam)
+	}
+
+	key := fmt.Sprintf("%s:%s", "reset", token)
+	_, err := database.Redis.Get(database.Ctx, key).Result()
+	if err == redis.Nil {
+		return ecode.CodeNotFound, "重置链接无效或已过期"
+	}
+	if err != nil {
+		return ecode.CodeSystemBusy, ecode.Message(ecode.CodeSystemBusy)
+	}
+
+	return ecode.CodeOK, "重置链接有效"
+}
+
+func resetPasswordActiveKey(userID uint64) string {
+	return fmt.Sprintf("reset:active:%d", userID)
 }

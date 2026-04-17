@@ -28,6 +28,7 @@ const (
 	CodeNeedRelogin              = 1115
 	CodeCaptchaSendTooFrequent   = 1116
 	CodeLoginLocked              = 1117
+	CodeResetLinkExists          = 1118
 
 	// 1200-1299 短链接
 	CodeOriginalURLInvalid    = 1201
@@ -76,6 +77,7 @@ var messages = map[int]string{
 	CodeNeedRelogin:              "用户信息修改成功，请重新登录",
 	CodeCaptchaSendTooFrequent:   "操作太频繁, 请60秒后再试",
 	CodeLoginLocked:              "密码错误次数过多, 请15分钟后重试",
+	CodeResetLinkExists:          "您已存在未过期的重置链接, 请先查看邮件",
 
 	CodeOriginalURLInvalid:    "原始链接格式不正确",
 	CodeQuotaInsufficient:     "配额不足, 请充值",

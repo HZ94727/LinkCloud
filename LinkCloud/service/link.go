@@ -99,7 +99,7 @@ func (s *LinkService) CreateShortLink(userID uint64, req dto.CreateShortLinkRequ
 	response := &dto.CreateShortLinkResponse{
 		ID:          shortLink.ID,
 		ShortCode:   shortLink.ShortCode,
-		ShortURL:    fmt.Sprintf("%s/%s", normalizeBaseURL(req.Domain), shortLink.ShortCode),
+		ShortURL:    fmt.Sprintf("%s/s/%s", normalizeBaseURL(req.Domain), shortLink.ShortCode),
 		OriginalURL: shortLink.OriginalURL,
 		Remark:      shortLink.Remark,
 		Status:      shortLink.Status,
