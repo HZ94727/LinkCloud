@@ -1,0 +1,27 @@
+name: Go Build
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.26.1"
+      
+      - name: Build
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o linkcloud .
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linkcloud-linux
+          path: linkcloud
