@@ -99,7 +99,7 @@ func (s *LinkService) CreateShortLink(userID uint64, req dto.CreateShortLinkRequ
 	response := &dto.CreateShortLinkResponse{
 		ID:          shortLink.ID,
 		ShortCode:   shortLink.ShortCode,
-		ShortURL:    fmt.Sprintf("%s/s/%s", normalizeBaseURL(req.Domain), shortLink.ShortCode),
+		ShortURL:    fmt.Sprintf("%s/%s", normalizeBaseURL(req.Domain), shortLink.ShortCode),
 		OriginalURL: shortLink.OriginalURL,
 		Remark:      shortLink.Remark,
 		Status:      shortLink.Status,
@@ -131,7 +131,6 @@ func (s *LinkService) ResolveShortLink(shortCode, password, clientIP, userAgent,
 		"error_message": nil,
 	}
 
-	// TODO: 这里的话如果是 redis 出现的问题，但是数据库没问题，那么逻辑应该要修改一下
 	link, err := s.resolveShortLink(shortCode)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

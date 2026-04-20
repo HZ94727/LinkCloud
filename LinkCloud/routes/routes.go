@@ -7,6 +7,7 @@ import (
 
 	"gitea.com/hz/linkcloud/controller"
 	"gitea.com/hz/linkcloud/middleware"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,6 +17,23 @@ func SetupRouter() *gin.Engine {
 	r.StaticFile("/reset-password", "./templates/reset_password.html")
 	r.StaticFile("/short-link-password", "./templates/short_link_password.html")
 	r.StaticFile("/favicon.ico", "./templates/favicon.ico")
+
+	// CORS 配置（你最终采用的方案）
+	r.Use(cors.New(cors.Config{
+		// 允许的前端域名（你的服务器 IP 和域名）
+		AllowOrigins: []string{
+			"http://106.52.125.25",
+			"http://linkcloud.abrdns.com",
+		},
+		// 允许的 HTTP 方法
+		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		// 允许的请求头
+		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		// 允许携带凭证（Cookie、Authorization 头等）
+		AllowCredentials: true,
+		// 预检请求缓存时间
+		MaxAge: 12 * time.Hour,
+	}))
 
 	// 公开接口
 	auth := r.Group("/api/v1/auth")
@@ -28,7 +46,7 @@ func SetupRouter() *gin.Engine {
 		auth.POST("/reset", middleware.TokenBucketRateLimit("auth-reset", 6, 3), controller.ResetPassword)
 	}
 
-	r.GET("/s/:short_code", middleware.TokenBucketRateLimit("short-link", 50, 25), controller.Redirect)
+	r.GET("/:short_code", middleware.TokenBucketRateLimit("short-link", 50, 25), controller.Redirect)
 
 	r.GET("/test", func(ctx *gin.Context) {
 		fmt.Println("/test router")

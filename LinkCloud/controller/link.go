@@ -23,7 +23,12 @@ func Redirect(c *gin.Context) {
 	)
 	if code != ecode.CodeOK {
 		if code == ecode.CodeShortLinkNeedPassword {
-			c.Redirect(http.StatusFound, "/short-link-password?short_code="+url.QueryEscape(shortCode))
+			c.Redirect(http.StatusFound, buildShortLinkPasswordPageURL(shortCode, ""))
+			return
+		}
+
+		if code == ecode.CodeShortLinkPasswordBad || code == ecode.CodeShortLinkPasswordLock {
+			c.Redirect(http.StatusFound, buildShortLinkPasswordPageURL(shortCode, message))
 			return
 		}
 
@@ -35,6 +40,14 @@ func Redirect(c *gin.Context) {
 	}
 
 	c.Redirect(http.StatusFound, link.OriginalURL)
+}
+
+func buildShortLinkPasswordPageURL(shortCode, message string) string {
+	redirectURL := "/short-link-password?short_code=" + url.QueryEscape(shortCode)
+	if message != "" {
+		redirectURL += "&message=" + url.QueryEscape(message)
+	}
+	return redirectURL
 }
 
 func CreateShortLink(c *gin.Context) {
