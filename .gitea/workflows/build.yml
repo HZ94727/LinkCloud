@@ -6,19 +6,31 @@ on:
 
 jobs:
   build:
-    # 1. 使用已经下载好的、包含 node 和 git 的完整镜像
+    # 1. 使用 Gitea 官方 runner 镜像，它包含 node 和 git
     runs-on: ubuntu-latest
-    container: docker.io/catthehacker/ubuntu:act-latest
+    container: docker.io/gitea/act_runner:latest
 
     steps:
-      # 2. Checkout 现在可以正常运行了
+      # 2. Checkout 代码 (现在 node 环境是存在的)
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 3. 直接使用镜像里预装的 Go 进行编译
+      # 3. 手动安装 Go 环境
+      - name: Install Go
+        run: |
+          # 使用国内镜像下载 Go
+          wget -q https://golang.google.cn/dl/go1.26.1.linux-amd64.tar.gz
+          tar -C /usr/local -xzf go1.26.1.linux-amd64.tar.gz
+          rm go1.26.1.linux-amd64.tar.gz
+          # 将 go 命令添加到 PATH 环境变量中，让后续步骤能找到它
+          echo "/usr/local/go/bin" >> $GITHUB_PATH
+
+      # 4. 编译 Go 代码 (现在 go 命令是可用的)
       - name: Build
         run: |
+          # 验证 go 是否安装成功
           go version
+          # 设置国内代理加速模块下载
           go env -w GOPROXY=https://goproxy.cn,direct
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o linkcloud .
 
