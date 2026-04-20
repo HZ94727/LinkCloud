@@ -6,22 +6,17 @@ on:
 
 jobs:
   build:
+    # 直接使用官方 Go 镜像，里面已经包含了 go 命令
     runs-on: ubuntu-latest
-    container: docker.io/catthehacker/ubuntu:act-latest
+    container: docker.io/golang:1.26.1
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Go 1.26.1
-        run: |
-          wget -q https://golang.google.cn/dl/go1.26.1.linux-amd64.tar.gz
-          tar -C /usr/local -xzf go1.26.1.linux-amd64.tar.gz
-          echo "/usr/local/go/bin" >> $GITHUB_PATH
-          go version
-
       - name: Build
         run: |
+          # 设置 Go 模块代理为国内源
           go env -w GOPROXY=https://goproxy.cn,direct
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o linkcloud .
 
