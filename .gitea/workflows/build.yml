@@ -53,3 +53,10 @@ jobs:
 
       - name: Build binary
         run: go build -trimpath -ldflags "-s -w" -o "${BINARY_NAME}" .
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linkcloud-${{ github.sha }}
+          path: LinkCloud/linkcloud
+          if-no-files-found: error
