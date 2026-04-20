@@ -6,25 +6,23 @@ on:
 
 jobs:
   build:
-    # 1. 运行在匹配的 runner 上
     runs-on: ubuntu-latest
-
-    # 2. 【关键修改】强制指定一个包含 node, git, docker 等完整工具的镜像
-    #    使用社区维护的 catthehacker/ubuntu:act-latest 镜像
     container: docker.io/catthehacker/ubuntu:act-latest
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v4
-        with:
-          # 这里保持你的 Go 版本设置
-          go-version: "1.26.1"
+      - name: Install Go 1.26.1
+        run: |
+          wget -q https://golang.google.cn/dl/go1.26.1.linux-amd64.tar.gz
+          tar -C /usr/local -xzf go1.26.1.linux-amd64.tar.gz
+          echo "/usr/local/go/bin" >> $GITHUB_PATH
+          go version
 
       - name: Build
         run: |
+          go env -w GOPROXY=https://goproxy.cn,direct
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o linkcloud .
 
       - name: Upload artifact
