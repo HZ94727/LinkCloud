@@ -6,17 +6,19 @@ on:
 
 jobs:
   build:
-    # 直接使用官方 Go 镜像，里面已经包含了 go 命令
+    # 1. 使用已经下载好的、包含 node 和 git 的完整镜像
     runs-on: ubuntu-latest
-    container: docker.io/golang:1.26.1
-    
+    container: docker.io/catthehacker/ubuntu:act-latest
+
     steps:
+      # 2. Checkout 现在可以正常运行了
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 3. 直接使用镜像里预装的 Go 进行编译
       - name: Build
         run: |
-          # 设置 Go 模块代理为国内源
+          go version
           go env -w GOPROXY=https://goproxy.cn,direct
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o linkcloud .
 
