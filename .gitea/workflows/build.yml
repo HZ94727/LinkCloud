@@ -4,29 +4,29 @@ on:
   push:
     branches: [main, master]
 
-# 添加这一块，指定容器镜像使用 Docker Hub
-defaults:
-  run:
-    shell: bash
-
 jobs:
   build:
-    runs-on: ubuntu-22.04
-    container:
-      image: ubuntu:22.04  # 使用 Docker Hub 的 Ubuntu 镜像，会走你的镜像加速
+    # 1. 运行在匹配的 runner 上
+    runs-on: ubuntu-latest
+
+    # 2. 【关键修改】强制指定一个包含 node, git, docker 等完整工具的镜像
+    #    使用社区维护的 catthehacker/ubuntu:act-latest 镜像
+    container: docker.io/catthehacker/ubuntu:act-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
+          # 这里保持你的 Go 版本设置
           go-version: "1.26.1"
-      
+
       - name: Build
         run: |
-          CGO_ENABLED=0 GOOS=linux GOAMD64=v3 go build -o linkcloud .
-      
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o linkcloud .
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
