@@ -10,8 +10,13 @@ jobs:
     container: docker.io/gitea/act_runner:latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      # 1. 【关键修改】手动克隆代码，替代 actions/checkout
+      - name: Checkout code manually
+        run: |
+          # 克隆你的仓库到容器中
+          # 注意：这里需要你的仓库是公开的，或者容器能访问到你的 Gitea 实例
+          git clone --branch ${{ gitea.ref_name }} http://192.168.10.18:3000/LinkCloud/LinkCloud-BackEnd.git .
+          ls -la
 
       - name: Install Go
         run: |
